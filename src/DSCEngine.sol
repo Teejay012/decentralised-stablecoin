@@ -39,6 +39,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__MintFailed();
     error DSCEngine__HealthFactorOkay(uint256 healthFactorValue);
     error DSCEngine__HealthFactorNotOkay();
+    error DSCEngine__AmountShouldBeLessThanTheCollateralBalance();
 
     // TYPES
 
@@ -180,6 +181,8 @@ contract DSCEngine is ReentrancyGuard {
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
         uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
 
+        s_userToTokenDeposits[msg.sender][collateralTokenAddress] += totalCollateralToRedeem;
+
         _redeemCollateral(collateralTokenAddress, totalCollateralToRedeem, user, msg.sender);
         _burnDsc(debtToCover, user, msg.sender);
 
@@ -199,6 +202,9 @@ contract DSCEngine is ReentrancyGuard {
     // INTERNAL FUNCTIONS
 
     function _redeemCollateral(address collateralTokenAddress, uint256 collateralAmount, address from, address to) internal {
+        if (s_userToTokenDeposits[to][collateralTokenAddress] < collateralAmount) {
+            revert DSCEngine__AmountShouldBeLessThanTheCollateralBalance();
+        }
         s_userToTokenDeposits[from][collateralTokenAddress] -= collateralAmount;
 
         emit RedeemedCollateral(from, to, collateralTokenAddress, collateralAmount);
